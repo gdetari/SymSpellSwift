@@ -8,16 +8,16 @@
 
 import Foundation
 
-struct SuggestItem: Comparable, Hashable {
+public struct SuggestItem: Comparable, Hashable {
     var term = ""
     var distance = 0
     var count = 0
 
-    static func < (lhs: SuggestItem, rhs: SuggestItem) -> Bool {
+    public static func < (lhs: SuggestItem, rhs: SuggestItem) -> Bool {
         lhs.distance == rhs.distance ? lhs.count > rhs.count: lhs.distance < rhs.distance
     }
 
-    static func == (lhs: SuggestItem, rhs: SuggestItem) -> Bool {
+    public static func == (lhs: SuggestItem, rhs: SuggestItem) -> Bool {
         lhs.term == rhs.term
     }
 }

@@ -9,19 +9,19 @@
 import Foundation
 
 public final class SymSpell {
-    enum Verbosity: CaseIterable {
+    public enum Verbosity: CaseIterable {
         case top, closest, all
     }
 
-    struct Segmentation {
+    public struct Segmentation {
         var segmentedString = ""
         var correctedString = ""
         var distanceSum = 0
         var probabilityLogSum = 0.0
     }
 
-    var wordCount: Int { words.count }
-    var entryCount: Int { deletes.count }
+    public var wordCount: Int { words.count }
+    public var entryCount: Int { deletes.count }
 
     private(set) var maxDictionaryEditDistance = 2
     private(set) var prefixLength = 7
@@ -39,7 +39,7 @@ public final class SymSpell {
     private var maxDictionaryWordLength: Int = 0
     private var totalCorpusWords = 0
 
-    init(maxDictionaryEditDistance: Int = 2, prefixLength: Int = 7, countThreshold: Int = 1) {
+    public init(maxDictionaryEditDistance: Int = 2, prefixLength: Int = 7, countThreshold: Int = 1) {
         precondition(maxDictionaryEditDistance >= 0, "maxDictionaryEditDistance must be non-negative")
         precondition(prefixLength > 1 && prefixLength > maxDictionaryEditDistance, "Invalid prefixLength")
         precondition(countThreshold >= 0, "countThreshold must be non-negative")
@@ -49,12 +49,12 @@ public final class SymSpell {
         self.countThreshold = countThreshold
     }
 
-    func loadBigramDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 2) throws {
+    public func loadBigramDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 2) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         loadBigramDictionary(from: content, termIndex: termIndex, countIndex: countIndex)
     }
 
-    func loadBigramDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 2) {
+    public func loadBigramDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 2) {
         string.enumerateLines { line, _ in
             let components = line.split(separator: self.separator)
             if components.count >= max(termIndex + 2, countIndex + 1), let count = Int(components[countIndex]) {
@@ -65,12 +65,12 @@ public final class SymSpell {
         }
     }
 
-    func loadDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) throws {
+    public func loadDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         loadDictionary(from: content, termIndex: termIndex, countIndex: countIndex, termCount: termCount)
     }
 
-    func loadDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) {
+    public func loadDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) {
         totalCorpusWords = 0
         maxDictionaryWordLength = 0
         let staging = SuggestionStage(initialCapacity: termCount)
@@ -87,12 +87,12 @@ public final class SymSpell {
         staging.commitTo(&deletes)
     }
 
-    func createDictionary(from url: URL) throws {
+    public func createDictionary(from url: URL) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         try createDictionary(from: content)
     }
 
-    func createDictionary(from string: String) throws {
+    public func createDictionary(from string: String) throws {
         let staging = SuggestionStage()
 
         string.enumerateLines { line, _ in
@@ -104,7 +104,7 @@ public final class SymSpell {
         staging.commitTo(&deletes)
     }
 
-    func lookup(_ input: String, verbosity: Verbosity, maxEditDistance: Int? = nil, includeUnknown: Bool = false) -> [SuggestItem] {
+    public func lookup(_ input: String, verbosity: Verbosity, maxEditDistance: Int? = nil, includeUnknown: Bool = false) -> [SuggestItem] {
         let maxEditDistance = min(maxEditDistance ?? maxDictionaryEditDistance, maxDictionaryEditDistance)
         var suggestions = [SuggestItem]()
         let inputLen = input.count
@@ -216,7 +216,7 @@ public final class SymSpell {
         return suggestions
     }
 
-    func lookupCompound(_ input: String, maxEditDistance: Int? = nil) -> [SuggestItem] {
+    public func lookupCompound(_ input: String, maxEditDistance: Int? = nil) -> [SuggestItem] {
         let maxEditDistance = min(maxEditDistance ?? maxDictionaryEditDistance, maxDictionaryEditDistance)
         let termList = parseWords(input)
         var suggestions = [SuggestItem]()
@@ -341,7 +341,7 @@ public final class SymSpell {
 //    ///   - maxEditDistance: The maximum edit distance between input and corrected words (0 = no correction).
 //    ///   - maxSegmentationWordLength: The maximum word length that should be considered.
 //    /// - Returns: A tuple with the word segmented string, corrected string, edit distance sum, and the log of the word occurrence probabilities.
-    func wordSegmentation(input: String, maxEditDistance: Int = 0) -> Segmentation {
+    public func wordSegmentation(input: String, maxEditDistance: Int = 0) -> Segmentation {
         // Normalize ligatures and replace hyphens
         let input = input.precomposedStringWithCompatibilityMapping.replacingOccurrences(of: "\u{002D}", with: "")
 
@@ -422,7 +422,7 @@ public final class SymSpell {
         return compositions[circularIndex]
     }
 
-    func createDictionaryEntry(key: String, count: Int, staging: SuggestionStage? = nil) {
+    internal func createDictionaryEntry(key: String, count: Int, staging: SuggestionStage? = nil) {
         guard count >= 0 else { return }
 
         var count = count
