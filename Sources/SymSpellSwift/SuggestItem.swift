@@ -9,9 +9,9 @@
 import Foundation
 
 public struct SuggestItem: Comparable, Hashable {
-    var term = ""
-    var distance = 0
-    var count = 0
+    public var term = ""
+    public var distance = 0
+    public var count = 0
 
     public static func < (lhs: SuggestItem, rhs: SuggestItem) -> Bool {
         lhs.distance == rhs.distance ? lhs.count > rhs.count: lhs.distance < rhs.distance
