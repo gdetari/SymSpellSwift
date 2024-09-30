@@ -8,26 +8,32 @@
 
 import Foundation
 
-public final class SymSpell {
-    public enum Verbosity: CaseIterable {
+class SymSpell {
+    /// .top: Top suggestion with the highest term frequency of the suggestions of smallest edit distance found.
+    /// .closest: All suggestions of smallest edit distance found, suggestions ordered by term frequency.
+    /// .all: All suggestions within maxEditDistance, suggestions ordered by edit distance , then by term frequency (slower, no early termination).
+    enum Verbosity: CaseIterable {
         case top, closest, all
     }
-
+    
     public struct Segmentation {
         var segmentedString = ""
         var correctedString = ""
         var distanceSum = 0
         var probabilityLogSum = 0.0
     }
+    
+    var wordCount: Int { words.count }
+    var entryCount: Int { deletes.count }
 
-    public var wordCount: Int { words.count }
-    public var entryCount: Int { deletes.count }
-
+    /// Maximum edit distance for dictionary precalculation.
     private(set) var maxDictionaryEditDistance = 2
+    /// Length of prefix, from which deletes are generated.
     private(set) var prefixLength = 7
+    /// Count threshold for a word to be considered a valid word for spelling correction.
     private(set) var countThreshold = 1
 
-    private var deletes = [Int: [String]]()
+    private var deletes = [String: [String]]()
     private var words = [String: Int]()
     private var belowThresholdWords = [String: Int]()
 
@@ -39,7 +45,12 @@ public final class SymSpell {
     private var maxDictionaryWordLength: Int = 0
     private var totalCorpusWords = 0
 
-    public init(maxDictionaryEditDistance: Int = 2, prefixLength: Int = 7, countThreshold: Int = 1) {
+    /// Create a new instanc of SymSpell.
+    /// - Parameters:
+    ///   - maxDictionaryEditDistance: Maximum edit distance for doing lookups.
+    ///   - prefixLength: The length of word prefixes used for spell checking.
+    ///   - countThreshold: The minimum frequency count for dictionary words to be considered correct spellings.
+    init(maxDictionaryEditDistance: Int = 2, prefixLength: Int = 7, countThreshold: Int = 1) {
         precondition(maxDictionaryEditDistance >= 0, "maxDictionaryEditDistance must be non-negative")
         precondition(prefixLength > 1 && prefixLength > maxDictionaryEditDistance, "Invalid prefixLength")
         precondition(countThreshold >= 0, "countThreshold must be non-negative")
@@ -49,15 +60,29 @@ public final class SymSpell {
         self.countThreshold = countThreshold
     }
 
-    public func loadBigramDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 2) throws {
+    /// Load multiple dictionary entries from a file of word/frequency count pairs.
+    /// Merges with any dictionary data already loaded.
+    /// - Parameters:
+    ///   - from: The url of the file.
+    ///   - termIndex:The column position of the word.
+    ///   - countIndex: The column position of the frequency count.
+    func loadBigramDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 2) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         loadBigramDictionary(from: content, termIndex: termIndex, countIndex: countIndex)
     }
 
-    public func loadBigramDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 2) {
+    /// Load multiple dictionary entries from a string of word/frequency count pairs.
+    /// Merges with any dictionary data already loaded.
+    /// - Parameters:
+    ///   - from: The string of the word/frequency count pairs.
+    ///   - termIndex:The column position of the word.
+    ///   - countIndex: The column position of the frequency count.
+    func loadBigramDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 2) {
+        let expectedComponentsCount = max(termIndex + 1, countIndex) + 1
         string.enumerateLines { line, _ in
-            let components = line.split(separator: self.separator)
-            if components.count >= max(termIndex + 2, countIndex + 1), let count = Int(components[countIndex]) {
+            let components = line.split(separator: self.separator, maxSplits: expectedComponentsCount - 1)
+            
+            if components.count >= expectedComponentsCount, let count = Int(components[countIndex]) {
                 let key = components[termIndex] + " " + components[termIndex + 1]
                 self.bigrams[String(key)] = count
                 self.bigramCountMin = min(self.bigramCountMin, count)
@@ -65,19 +90,32 @@ public final class SymSpell {
         }
     }
 
-    public func loadDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) throws {
+    /// Load multiple dictionary entries from a file of word/frequency count pairs.
+    /// Merges with any dictionary data already loaded.
+    /// - Parameters:
+    ///   - from: The url of the file.
+    ///   - termIndex:The column position of the word.
+    ///   - countIndex: The column position of the frequency count.
+    func loadDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         loadDictionary(from: content, termIndex: termIndex, countIndex: countIndex, termCount: termCount)
     }
 
-    public func loadDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) {
+    /// Load multiple dictionary entries from a string of word/frequency count pairs.
+    /// Merges with any dictionary data already loaded.
+    /// - Parameters:
+    ///   - from: The string of the word/frequency count pairs.
+    ///   - termIndex:The column position of the word.
+    ///   - countIndex: The column position of the frequency count.
+    func loadDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 1, termCount: Int? = nil) {
         totalCorpusWords = 0
         maxDictionaryWordLength = 0
         let staging = SuggestionStage(initialCapacity: termCount)
-
+        let expectedComponentsCount = max(termIndex, countIndex) + 1
+        
         string.enumerateLines { line, _ in
-            let components = line.split(separator: self.separator)
-            if components.count >= max(termIndex, countIndex) + 1, let count = Int(components[countIndex]) {
+            let components = line.split(separator: self.separator, maxSplits: expectedComponentsCount - 1)
+            if components.count == expectedComponentsCount, let count = Int(components[countIndex]) {
                 let key = components[termIndex]
 
                 self.createDictionaryEntry(key: String(key), count: count, staging: staging)
@@ -87,12 +125,20 @@ public final class SymSpell {
         staging.commitTo(&deletes)
     }
 
-    public func createDictionary(from url: URL) throws {
+    /// Create a dictionary from a file containing plain text.
+    /// Merges with any dictionary data already loaded.
+    /// - Parameters:
+    ///   - from: The url of the file.
+    func createDictionary(from url: URL) throws {
         let content = try String(contentsOf: url, encoding: .utf8)
         try createDictionary(from: content)
     }
 
-    public func createDictionary(from string: String) throws {
+    /// Create a dictionary from a string containing plain text.
+    /// Merges with any dictionary data already loaded.
+    /// - Parameters:
+    ///   - from: The string containing the words.
+    func createDictionary(from string: String) throws {
         let staging = SuggestionStage()
 
         string.enumerateLines { line, _ in
@@ -104,7 +150,14 @@ public final class SymSpell {
         staging.commitTo(&deletes)
     }
 
-    public func lookup(_ input: String, verbosity: Verbosity, maxEditDistance: Int? = nil, includeUnknown: Bool = false) -> [SuggestItem] {
+    /// Find suggested spellings for a given input word.
+    /// - Parameters:
+    ///   - input: The word being spell checked.
+    ///   - verbosity: The value controlling the quantity/closeness of the retuned suggestions.
+    ///   - maxEditDistance: The maximum edit distance between input and suggested words.
+    ///   - includeUnkown: Include input word in suggestions, if no words within edit distance found.
+    /// - Returns: Array of `SuggestItem` representing suggested correct spellings for the input word, sorted by edit distance, and secondarily by count frequency.
+    func lookup(_ input: String, verbosity: Verbosity, maxEditDistance: Int? = nil, includeUnknown: Bool = false) -> [SuggestItem] {
         let maxEditDistance = min(maxEditDistance ?? maxDictionaryEditDistance, maxDictionaryEditDistance)
         var suggestions = [SuggestItem]()
         let inputLen = input.count
@@ -139,7 +192,7 @@ public final class SymSpell {
                 break
             }
 
-            if let dictSuggestions = deletes[candidate.hashValue] {
+            if let dictSuggestions = deletes[String(candidate)] {
                 for suggestion in dictSuggestions {
                     let suggestionLen = suggestion.count
                     if suggestion == input { continue }
@@ -151,7 +204,7 @@ public final class SymSpell {
 
                     var distance = 0
                     let minLength = min(inputLen, suggestionLen)
-
+                    
                     if candidateLen == 0 {
                         distance = max(inputLen, suggestionLen)
                         if distance > maxEditDistance2 || !consideredSuggestions.insert(suggestion).inserted { continue }
@@ -216,7 +269,12 @@ public final class SymSpell {
         return suggestions
     }
 
-    public func lookupCompound(_ input: String, maxEditDistance: Int? = nil) -> [SuggestItem] {
+    /// Find suggested spellings for a multi-word input string (supports word splitting/merging).
+    /// - Parameters:
+    ///   - input: The string being spell checked.
+    ///   - maxEditDistance: The maximum edit distance between input and suggested words.
+    /// - Returns: Array of `SuggestItem`  representing suggested correct spellings for the input string.
+    func lookupCompound(_ input: String, maxEditDistance: Int? = nil) -> [SuggestItem] {
         let maxEditDistance = min(maxEditDistance ?? maxDictionaryEditDistance, maxDictionaryEditDistance)
         let termList = parseWords(input)
         var suggestions = [SuggestItem]()
@@ -334,14 +392,18 @@ public final class SymSpell {
         return [suggestion]
     }
 
-//
-//    /// Find suggested spellings for a multi-word input string (supports word splitting/merging).
-//    /// - Parameters:
-//    ///   - input: The string being spell checked.
-//    ///   - maxEditDistance: The maximum edit distance between input and corrected words (0 = no correction).
-//    ///   - maxSegmentationWordLength: The maximum word length that should be considered.
-//    /// - Returns: A tuple with the word segmented string, corrected string, edit distance sum, and the log of the word occurrence probabilities.
-    public func wordSegmentation(input: String, maxEditDistance: Int = 0) -> Segmentation {
+    /// Divides a string into words by inserting missing spaces at the appropriate positions.
+    /// Misspelled words are corrected and do not affect segmentation, existing spaces are allowed and considered for optimum segmentation.
+    /// - Parameters:
+    ///   - input:
+    ///   - maxEditDistance:
+    /// - Returns: A `Segmentation` struct, containing:
+    ///    - the segmented string,
+    ///    - the segmented and spelling corrected string,
+    ///    - the Edit distance sum between input string and corrected string,
+    ///    - the Sum of word occurence probabilities in log scale (a measure of how common and probable the corrected segmentation is).
+
+    func wordSegmentation(input: String, maxEditDistance: Int = 0) -> Segmentation {
         // Normalize ligatures and replace hyphens
         let input = input.precomposedStringWithCompatibilityMapping.replacingOccurrences(of: "\u{002D}", with: "")
 
@@ -355,7 +417,7 @@ public final class SymSpell {
 
             for i in 1 ... min(input.count - j, maxDictionaryWordLength) {
                 guard var partSubstr = input[j ..< j + i] else { continue }
-
+                
                 var separatorLength = 0
                 var topEd = 0
                 var topProbabilityLog = 0.0
@@ -369,15 +431,13 @@ public final class SymSpell {
                     separatorLength = 1
                 }
 
-                var part = String(partSubstr)
-
                 // Calculate edit distance
-                topEd += part.count
-                part = part.replacingOccurrences(of: " ", with: "")
+                topEd += partSubstr.count
+                let part = partSubstr.replacingOccurrences(of: " ", with: "")
                 topEd -= part.count
 
                 let results = lookup(part.lowercased(), verbosity: .top, maxEditDistance: maxEditDistance)
-
+                
                 if let result = results.first {
                     topResult = result.term
                     if part.first?.isUppercase == true {
@@ -386,7 +446,7 @@ public final class SymSpell {
                     topEd += result.distance
                     topProbabilityLog = log10(Double(result.count) / Double(totalCorpusWords))
                 } else {
-                    topResult = String(part)
+                    topResult = part
                     topEd += part.count
                     topProbabilityLog = log10(10.0 / (Double(totalCorpusWords) * pow(10.0, Double(part.count))))
                 }
@@ -421,8 +481,15 @@ public final class SymSpell {
 
         return compositions[circularIndex]
     }
-
-    internal func createDictionaryEntry(key: String, count: Int, staging: SuggestionStage? = nil) {
+    
+    /// Create/Update an entry in the dictionary. For every word there are deletes with an edit distance of 1..maxEditDistance created and added to the dictionary. Every delete entry has a suggestions list, which points to the original term(s) it was created from. 
+    /// The dictionary may be dynamically updated (word frequency and new words) at any time by calling CreateDictionaryEntry
+    /// - Parameters:
+    ///   - key: The word to add to dictionary.
+    ///   - count: The frequency count for word.
+    ///   - staging: Optional staging object to speed up adding many entries by staging them to a temporary structure
+    /// - Returns: True if the word was added as a new correctly spelled word, or false if the word is added as a below threshold word, or updates an existing correctly spelled word.
+    public func createDictionaryEntry(key: String, count: Int, staging: SuggestionStage? = nil) {
         guard count >= 0 else { return }
 
         var count = count
@@ -451,11 +518,11 @@ public final class SymSpell {
         let edits = editsPrefix(key)
         if let staging {
             for delete in edits {
-                staging.add(delete.hashValue, suggestion: key)
+                staging.add(delete, suggestion: key)
             }
         } else {
             for delete in edits {
-                deletes[delete.hashValue, default: []].append(key)
+                deletes[delete, default: []].append(key)
             }
         }
     }
@@ -464,7 +531,6 @@ public final class SymSpell {
         guard deleteLen != 0 else { return true }
 
         let suggestionLen = min(prefixLength, suggestionLen)
-        
         return !delete.prefix(deleteLen).contains { !suggestion.prefix(suggestionLen).contains($0) }
     }
 
@@ -500,3 +566,4 @@ public final class SymSpell {
         }
     }
 }
+

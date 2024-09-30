@@ -8,6 +8,8 @@
 
 import Foundation
 
+import Foundation
+
 extension SymSpell {
     class SuggestionStage {
         private struct Node: Equatable {
@@ -20,7 +22,7 @@ extension SymSpell {
             var first: Int
         }
 
-        private var deletes: [Int: Entry]
+        private var deletes: [String: Entry]
         private var nodes = [Node]()
 
         init(initialCapacity: Int? = nil) {
@@ -36,16 +38,16 @@ extension SymSpell {
             nodes.removeAll()
         }
 
-        func add(_ deleteHash: Int, suggestion: String) {
-            var entry = deletes[deleteHash, default: Entry(count: 0, first: -1)]
+        func add(_ delete: String, suggestion: String) {
+            var entry = deletes[delete, default: Entry(count: 0, first: -1)]
             let next = entry.first
             entry.count += 1
             entry.first = nodes.count
-            deletes[deleteHash] = entry
+            deletes[delete] = entry
             nodes.append(Node(suggestion: suggestion, next: next))
         }
 
-        func commitTo(_ permanentDeletes: inout [Int: [String]]) {
+        func commitTo(_ permanentDeletes: inout [String: [String]]) {
             permanentDeletes.reserveCapacity(deletes.count)
             
             for (key, value) in deletes {

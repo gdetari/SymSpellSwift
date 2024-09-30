@@ -8,9 +8,13 @@
 
 import Foundation
 
+/// Spelling suggestion returned from lookup
 public struct SuggestItem: Comparable, Hashable {
+    /// The suggested correctly spelled word
     public var term = ""
+    /// Edit distance between searched for word and suggestion.
     public var distance = 0
+    /// Frequency of suggestion in the dictionary (a measure of how common the word is)
     public var count = 0
 
     public static func < (lhs: SuggestItem, rhs: SuggestItem) -> Bool {
