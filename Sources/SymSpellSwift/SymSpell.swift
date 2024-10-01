@@ -252,8 +252,9 @@ class SymSpell {
 
             if lengthDiff < maxEditDistance, candidateLen <= prefixLength {
                 if verbosity != .all, lengthDiff >= maxEditDistance2 { continue }
-                for i in 0 ..< candidateLen {
-                    let delete = candidate.removingCharacter(at: i)
+                for index in candidate.indices {
+                    var delete = candidate
+                    delete.remove(at: index)
 
                     if consideredDeletes.insert(delete).inserted {
                         candidates.append(delete)
@@ -531,7 +532,8 @@ class SymSpell {
         guard deleteLen != 0 else { return true }
 
         let suggestionLen = min(prefixLength, suggestionLen)
-        return !delete.prefix(deleteLen).contains { !suggestion.prefix(suggestionLen).contains($0) }
+        let suggestionPrefix = suggestion.prefix(suggestionLen)
+        return !delete.prefix(deleteLen).contains { !suggestionPrefix.contains($0) }
     }
 
     private func parseWords(_ text: String) -> [String] {
@@ -558,8 +560,9 @@ class SymSpell {
         guard word.count > 1 else { return }
 
         let editDistance = editDistance + 1
-        for i in 0 ..< word.count {
-            let delete = word.removingCharacter(at: i)
+        for index in word.indices {
+            var delete = word
+            delete.remove(at: index)
             if deleteWords.insert(String(delete)).inserted, editDistance < maxDictionaryEditDistance {
                 edits(delete, editDistance, &deleteWords)
             }

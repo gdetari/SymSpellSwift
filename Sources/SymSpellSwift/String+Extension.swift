@@ -69,9 +69,3 @@ extension String {
         return self[start ..< end]
     }
 }
-
-extension Substring {
-    func removingCharacter(at index: Int) -> Substring {
-        prefix(index) + dropFirst(index + 1)
-    }
-}
