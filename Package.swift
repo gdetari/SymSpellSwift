@@ -16,11 +16,14 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "SymSpellSwift"),
+        .executableTarget(
+            name: "Benchmark",
+            dependencies: ["SymSpellSwift"]),
         .testTarget(
             name: "SymSpellSwiftTests",
             dependencies: ["SymSpellSwift"],
             resources: [
-                .process("Resources")  // Add the "Resources" folder
+                .process("Resources")
             ]
         )
     ]

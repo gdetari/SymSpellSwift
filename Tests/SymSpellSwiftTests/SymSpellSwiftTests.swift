@@ -113,30 +113,13 @@ final class SymSpellTests: XCTestCase {
     }
 
     func testLookupShouldNotReturnNonWordDelete() {
-        let symSpell = SymSpell(maxDictionaryEditDistance: 2, prefixLength: 7, countThreshold: 10)
+        let symSpell = SymSpell(maxDictionaryEditDistance: 2, prefixLength: 7)
         symSpell.createDictionaryEntry(key: "pawn", count: 10)
 
         var result = symSpell.lookup("paw", verbosity: .top, maxEditDistance: 0)
         XCTAssertEqual(0, result.count)
 
         result = symSpell.lookup("awn", verbosity: .top, maxEditDistance: 0)
-        XCTAssertEqual(0, result.count)
-    }
-
-    func testLookupShouldNotReturnLowCountWord() {
-        let symSpell = SymSpell(maxDictionaryEditDistance: 2, prefixLength: 7, countThreshold: 10)
-        symSpell.createDictionaryEntry(key: "pawn", count: 1)
-
-        let result = symSpell.lookup("pawn", verbosity: .top, maxEditDistance: 0)
-        XCTAssertEqual(0, result.count)
-    }
-
-    func testLookupShouldNotReturnLowCountWordThatsAlsoDeleteWord() {
-        let symSpell = SymSpell(maxDictionaryEditDistance: 2, prefixLength: 7, countThreshold: 10)
-        symSpell.createDictionaryEntry(key: "flame", count: 20)
-        symSpell.createDictionaryEntry(key: "flam", count: 1)
-
-        let result = symSpell.lookup("flam", verbosity: .top, maxEditDistance: 0)
         XCTAssertEqual(0, result.count)
     }
 
