@@ -92,9 +92,8 @@ class Benchmark {
         let repetitions = 1000
         var totalLoopCount = 0
         var totalMatches: Int64 = 0
-        // var totalOrigMatches: Int64 = 0
-        var totalLoadTime = 0.0, totalMem = 0.0, totalLookupTime = 0.0
-        // var totalOrigLoadTime = 0.0, totalOrigMem = 0.0, totalOrigLookupTime = 0.0
+        var totalLoadTime = 0.0
+        var totalLookupTime = 0.0
         var totalRepetitions: Int64 = 0
 
         let stopWatch = Stopwatch()
@@ -104,16 +103,12 @@ class Benchmark {
                 for i in 0 ..< dictionaryPath.count {
                     totalLoopCount += 1
 
-                    // Instantiated dictionary
-                    let memSize = ProcessInfo.processInfo.physicalMemory
                     stopWatch.start()
                     let dict = SymSpell(maxDictionaryEditDistance: maxEditDistance, prefixLength: prefixLength)
                     try? dict.loadDictionary(from: dictionaryPath[i], termIndex: 0, countIndex: 1, termCount: dictionarySize[i])
                     stopWatch.stop()
-                    let memDelta = ProcessInfo.processInfo.physicalMemory - memSize
                     totalLoadTime += stopWatch.elapsedTime
-                    totalMem += Double(memDelta) / 1024.0 / 1024.0
-                    print("Precalculation instance \(String(format: "%.3f", stopWatch.elapsedTime))s \(String(format: "%.1f", Double(memDelta) / 1024.0 / 1024.0))MB \(dict.wordCount) words \(dict.entryCount) entries MaxEditDistance=\(maxEditDistance) prefixLength=\(prefixLength) dict=\(dictionaryName[i])")
+                    print("Precalculation instance \(String(format: "%.3f", stopWatch.elapsedTime))s \(dict.wordCount) words \(dict.entryCount) entries MaxEditDistance=\(maxEditDistance) prefixLength=\(prefixLength) dict=\(dictionaryName[i])")
 
                     // Benchmark lookup
                     for verbosity in SymSpell.Verbosity.allCases {

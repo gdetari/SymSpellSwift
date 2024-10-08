@@ -147,9 +147,8 @@ public class SymSpell {
     ///   - input: The word being spell checked.
     ///   - verbosity: The value controlling the quantity/closeness of the retuned suggestions.
     ///   - maxEditDistance: The maximum edit distance between input and suggested words.
-    ///   - includeUnkown: Include input word in suggestions, if no words within edit distance found.
     /// - Returns: Array of `SuggestItem` representing suggested correct spellings for the input word, sorted by edit distance, and secondarily by count frequency.
-    public func lookup(_ input: String, verbosity: Verbosity, maxEditDistance: Int? = nil, includeUnknown: Bool = false) -> [SuggestItem] {
+    public func lookup(_ input: String, verbosity: Verbosity, maxEditDistance: Int? = nil) -> [SuggestItem] {
         let maxEditDistance = min(maxEditDistance ?? maxDictionaryEditDistance, maxDictionaryEditDistance)
         var suggestions = [SuggestItem]()
         let inputLen = input.count
@@ -184,63 +183,61 @@ public class SymSpell {
                 break
             }
 
-            if let dictSuggestions = deletes[String(candidate)] {
-                for suggestion in dictSuggestions {
-                    let suggestionLen = suggestion.count
-                    if suggestion == input { continue }
-                    if abs(suggestionLen - inputLen) > maxEditDistance2 || suggestionLen < candidateLen ||
-                        (suggestionLen == candidateLen && suggestion != candidate) { continue }
+            for suggestion in deletes[String(candidate)] ?? [] {
+                let suggestionLen = suggestion.count
+                if suggestion == input { continue }
+                if abs(suggestionLen - inputLen) > maxEditDistance2 || suggestionLen < candidateLen ||
+                    (suggestionLen == candidateLen && suggestion != candidate) { continue }
 
-                    let suggPrefixLen = min(suggestionLen, prefixLength)
-                    if suggPrefixLen > inputPrefixLen, (suggPrefixLen - candidateLen) > maxEditDistance2 { continue }
+                let suggPrefixLen = min(suggestionLen, prefixLength)
+                if suggPrefixLen > inputPrefixLen, (suggPrefixLen - candidateLen) > maxEditDistance2 { continue }
 
-                    var distance = 0
-                    let minLength = min(inputLen, suggestionLen)
-                    
-                    if candidateLen == 0 {
-                        distance = max(inputLen, suggestionLen)
-                        if distance > maxEditDistance2 || !consideredSuggestions.insert(suggestion).inserted { continue }
-                    } else if suggestionLen == 1 {
-                        if !input.contains(suggestion) {
-                            distance = inputLen
-                        } else {
-                            distance = inputLen - 1
-                        }
-                        if distance > maxEditDistance2 || !consideredSuggestions.insert(suggestion).inserted { continue }
-                    } else if prefixLength - maxEditDistance == candidateLen,
-                              (minLength - prefixLength > 1 && !input.hasSuffix(suggestion.suffix(minLength - prefixLength))) ||
-                              (minLength - prefixLength > 0 && input[prefixLength - minLength] != suggestion[prefixLength - minLength] &&
-                                  ((input[prefixLength - minLength - 1] != suggestion[prefixLength - minLength]) || (input[prefixLength - minLength] != suggestion[prefixLength - minLength - 1]))) {
-                        continue
+                var distance = 0
+                let minLength = min(inputLen, suggestionLen)
+                
+                if candidateLen == 0 {
+                    distance = max(inputLen, suggestionLen)
+                    if distance > maxEditDistance2 || !consideredSuggestions.insert(suggestion).inserted { continue }
+                } else if suggestionLen == 1 {
+                    if !input.contains(suggestion) {
+                        distance = inputLen
                     } else {
-                        if verbosity != .all && !deleteInSuggestionPrefix(candidate, candidateLen, suggestion, suggestionLen) ||
-                            !consideredSuggestions.insert(suggestion).inserted { continue }
-                        distance = input.distanceDamerauLevenshtein(between: suggestion)
-                        if distance < 0 { continue }
+                        distance = inputLen - 1
                     }
+                    if distance > maxEditDistance2 || !consideredSuggestions.insert(suggestion).inserted { continue }
+                } else if prefixLength - maxEditDistance == candidateLen,
+                          (minLength - prefixLength > 1 && !input.hasSuffix(suggestion.suffix(minLength - prefixLength))) ||
+                          (minLength - prefixLength > 0 && input[prefixLength - minLength] != suggestion[prefixLength - minLength] &&
+                              ((input[prefixLength - minLength - 1] != suggestion[prefixLength - minLength]) || (input[prefixLength - minLength] != suggestion[prefixLength - minLength - 1]))) {
+                    continue
+                } else {
+                    if verbosity != .all && !deleteInSuggestionPrefix(candidate, candidateLen, suggestion, suggestionLen) ||
+                        !consideredSuggestions.insert(suggestion).inserted { continue }
+                    distance = input.distanceDamerauLevenshtein(between: suggestion)
+                }
 
-                    if distance <= maxEditDistance2 {
-                        let count = words[suggestion, default: 0]
-                        let si = SuggestItem(term: suggestion, distance: distance, count: count)
-                        if !suggestions.isEmpty {
-                            switch verbosity {
-                            case .closest:
-                                if distance < maxEditDistance2 { suggestions.removeAll() }
-                            case .top:
-                                if distance < maxEditDistance2 || count > suggestions[0].count {
-                                    maxEditDistance2 = distance
-                                    suggestions[0] = si
-                                }
-                                continue
-                            case .all:
-                                break
+                if distance <= maxEditDistance2 {
+                    let count = words[suggestion, default: 0]
+                    let si = SuggestItem(term: suggestion, distance: distance, count: count)
+                    if !suggestions.isEmpty {
+                        switch verbosity {
+                        case .closest:
+                            if distance < maxEditDistance2 { suggestions.removeAll() }
+                        case .top:
+                            if distance < maxEditDistance2 || count > suggestions[0].count {
+                                maxEditDistance2 = distance
+                                suggestions[0] = si
                             }
+                            continue
+                        case .all:
+                            break
                         }
-                        if verbosity != .all { maxEditDistance2 = distance }
-                        suggestions.append(si)
                     }
+                    if verbosity != .all { maxEditDistance2 = distance }
+                    suggestions.append(si)
                 }
             }
+            
 
             if lengthDiff < maxEditDistance, candidateLen <= prefixLength {
                 if verbosity != .all, lengthDiff >= maxEditDistance2 { continue }
@@ -254,11 +251,7 @@ public class SymSpell {
             }
         }
 
-        suggestions.sort()
-        if includeUnknown, suggestions.isEmpty {
-            suggestions.append(SuggestItem(term: input, distance: maxEditDistance + 1, count: 0))
-        }
-        return suggestions
+        return suggestions.sorted()
     }
 
     /// Find suggested spellings for a multi-word input string (supports word splitting/merging).
@@ -495,7 +488,7 @@ public class SymSpell {
 
         let edits = editsPrefix(key)
         for delete in edits {
-            deletes[delete, default: []].append(key)
+            deletes[String(delete), default: []].append(key)
         }
     }
 
@@ -517,23 +510,21 @@ public class SymSpell {
         return words
     }
 
-    private func editsPrefix(_ key: String) -> Set<String> {
-        var hashSet = Set<String>()
-        if key.count <= maxDictionaryEditDistance { hashSet.insert("") }
+    private func editsPrefix(_ key: String) -> Set<Substring> {
+        var prefixWords = Set<Substring>()
+        if key.count <= maxDictionaryEditDistance { prefixWords.insert("") }
         let prefixKey = key.prefix(prefixLength)
-        hashSet.insert(String(prefixKey))
-        edits(prefixKey, 0, &hashSet)
+        prefixWords.insert(prefixKey)
+        edits(prefixKey, 0, &prefixWords)
 
-        return hashSet
+        return prefixWords
     }
 
-    private func edits(_ word: Substring, _ editDistance: Int, _ deleteWords: inout Set<String>) {
-        guard word.count > 1 else { return }
-
+    private func edits(_ word: Substring, _ editDistance: Int, _ deleteWords: inout Set<Substring>) {
         let editDistance = editDistance + 1
         for index in word.indices {
             let delete = word.prefix(upTo: index) + word.suffix(from: word.index(after: index))
-            if deleteWords.insert(String(delete)).inserted, editDistance < maxDictionaryEditDistance {
+            if deleteWords.insert(delete).inserted, editDistance < maxDictionaryEditDistance, delete.count > 1 {
                 edits(delete, editDistance, &deleteWords)
             }
         }
