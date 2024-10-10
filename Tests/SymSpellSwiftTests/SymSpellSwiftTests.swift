@@ -122,6 +122,26 @@ final class SymSpellTests: XCTestCase {
         result = symSpell.lookup("awn", verbosity: .top, maxEditDistance: 0)
         XCTAssertEqual(0, result.count)
     }
+    
+    func testComplete() {
+        guard let symSpell = loadFromDictionaryFile() else {
+            XCTFail()
+            return
+        }
+        
+        var result = symSpell.complete("yeste")
+        XCTAssert(result.count == 4)
+        XCTAssert(result[0].term == "yesterday")
+        XCTAssert(result[1].term == "yesterdays")
+        
+        result = symSpell.complete("yste")
+        XCTAssert(result.count == 0)
+        
+        result = symSpell.complete("ballo")
+        XCTAssert(result.count == 10)
+        XCTAssert(result[0].term == "balloon")
+        XCTAssert(result[1].term == "ballot")
+    }
 
     func testEnglishWordCorrection() {
         guard let symSpell = loadFromDictionaryFile() else {
@@ -182,9 +202,9 @@ final class SymSpellTests: XCTestCase {
             "itwasthebestoftimesitwastheworstoftimesitwastheageofwisdomitwastheageoffoolishness",
         ]
 
-        XCTAssertEqual(symSpell.wordSegmentation(input: sentences[0], maxEditDistance: 0).segmentedString, "the quick brown fox jumps over the lazy dog")
-        XCTAssertEqual(symSpell.wordSegmentation(input: sentences[1], maxEditDistance: 0).segmentedString, "it was a bright cold day in april and the clocks were striking thirteen")
-        XCTAssertEqual(symSpell.wordSegmentation(input: sentences[2], maxEditDistance: 0).segmentedString, "it was the best of times it was the worst of times it was the age of wisdom it was the age of foolishness")
+        XCTAssertEqual(symSpell.wordSegmentation(sentences[0], maxEditDistance: 0).segmentedString, "the quick brown fox jumps over the lazy dog")
+        XCTAssertEqual(symSpell.wordSegmentation(sentences[1], maxEditDistance: 0).segmentedString, "it was a bright cold day in april and the clocks were striking thirteen")
+        XCTAssertEqual(symSpell.wordSegmentation(sentences[2], maxEditDistance: 0).segmentedString, "it was the best of times it was the worst of times it was the age of wisdom it was the age of foolishness")
     }
 }
 

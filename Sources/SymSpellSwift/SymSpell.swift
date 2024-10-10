@@ -388,7 +388,7 @@ public class SymSpell {
     ///    - the Edit distance sum between input string and corrected string,
     ///    - the Sum of word occurence probabilities in log scale (a measure of how common and probable the corrected segmentation is).
 
-    public func wordSegmentation(input: String, maxEditDistance: Int = 0) -> Segmentation {
+    public func wordSegmentation(_ input: String, maxEditDistance: Int = 0) -> Segmentation {
         // Normalize ligatures and replace hyphens
         let input = input.precomposedStringWithCompatibilityMapping.replacingOccurrences(of: "\u{002D}", with: "")
 
@@ -465,6 +465,23 @@ public class SymSpell {
         }
 
         return compositions[circularIndex]
+    }
+    
+    /// Completes a correctly spelled prefix to different suggestions
+    /// - Parameters:
+    ///   - input: the prefix needed to be completed
+    /// - Returns: Array of `SuggestItem`  representing suggested correct spellings for the input string.
+    public func complete(_ input: String) -> [SuggestItem] {
+        let results = words.filter { $0.key.hasPrefix(input) }
+        var suggestions = [SuggestItem]()
+        for term in results {
+            let item = SuggestItem(term: term.key, distance: term.key.count - input.count, count: term.value)
+            suggestions.append(item)
+        }
+        
+        return suggestions.sorted { item1, item2 in
+            item1.count > item2.count
+        }
     }
     
     /// Create/Update an entry in the dictionary. For every word there are deletes with an edit distance of 1..maxEditDistance created and added to the dictionary. Every delete entry has a suggestions list, which points to the original term(s) it was created from. 
