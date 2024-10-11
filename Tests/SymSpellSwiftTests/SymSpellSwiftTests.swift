@@ -142,6 +142,31 @@ final class SymSpellTests: XCTestCase {
         XCTAssert(result[0].term == "balloon")
         XCTAssert(result[1].term == "ballot")
     }
+    
+    func testUnicodeComplete() {
+        let symSpell = SymSpell()
+        symSpell.createDictionaryEntry(key: "བོད་", count: 1)
+        symSpell.createDictionaryEntry(key: "ལྗོངས་", count: 1)
+        
+        var result = symSpell.complete("བ")
+        XCTAssert(result.count == 1)
+        XCTAssert(result[0].term == "བོད་")
+        
+        result = symSpell.complete("བོ")
+        XCTAssert(result.count == 1)
+        XCTAssert(result[0].term == "བོད་")
+        
+        result = symSpell.complete("ད")
+        XCTAssert(result.count == 0)
+        
+        result = symSpell.complete("ལ")
+        XCTAssert(result.count == 1)
+        
+        result = symSpell.complete("ལྗ")
+        XCTAssert(result.count == 1)
+        
+        
+    }
 
     func testEnglishWordCorrection() {
         guard let symSpell = loadFromDictionaryFile() else {

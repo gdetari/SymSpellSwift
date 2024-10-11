@@ -472,7 +472,8 @@ public class SymSpell {
     ///   - input: the prefix needed to be completed
     /// - Returns: Array of `SuggestItem`  representing suggested correct spellings for the input string.
     public func complete(_ input: String) -> [SuggestItem] {
-        let results = words.filter { $0.key.hasPrefix(input) }
+        let uncodeInput = input.unicodeScalars
+        let results = words.filter { $0.key.unicodeScalars.starts(with: uncodeInput) }
         var suggestions = [SuggestItem]()
         for term in results {
             let item = SuggestItem(term: term.key, distance: term.key.count - input.count, count: term.value)
