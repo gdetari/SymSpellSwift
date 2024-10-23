@@ -10,14 +10,14 @@ final class SymSpellTests: XCTestCase {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
-    private func loadFromDictionaryFile() -> SymSpell? {
+    private func loadFromDictionaryFile() async -> SymSpell? {
         let symSpell = SymSpell(maxDictionaryEditDistance: 2, prefixLength: 3)
 
         guard let path = Bundle.module.url(forResource: "frequency_dictionary_en_82_765", withExtension: "txt") else {
             return nil
         }
 
-        try? symSpell.loadDictionary(from: path, termIndex: 0, countIndex: 1, termCount: 82765)
+        try? await symSpell.loadDictionary(from: path, termIndex: 0, countIndex: 1, termCount: 82765)
 
         return symSpell
     }
@@ -123,8 +123,8 @@ final class SymSpellTests: XCTestCase {
         XCTAssertEqual(0, result.count)
     }
     
-    func testComplete() {
-        guard let symSpell = loadFromDictionaryFile() else {
+    func testComplete() async {
+        guard let symSpell = await loadFromDictionaryFile() else {
             XCTFail()
             return
         }
@@ -168,8 +168,8 @@ final class SymSpellTests: XCTestCase {
         
     }
 
-    func testEnglishWordCorrection() {
-        guard let symSpell = loadFromDictionaryFile() else {
+    func testEnglishWordCorrection() async {
+        guard let symSpell = await loadFromDictionaryFile() else {
             XCTFail()
             return
         }
@@ -189,8 +189,8 @@ final class SymSpellTests: XCTestCase {
         XCTAssert(symSpell.lookup(sentences[4], verbosity: .closest).first?.term == "know")
     }
 
-    func testEnglishCompoundCorrection() {
-        guard let symSpell = loadFromDictionaryFile() else {
+    func testEnglishCompoundCorrection() async {
+        guard let symSpell = await loadFromDictionaryFile() else {
             XCTFail()
             return
         }
@@ -200,7 +200,7 @@ final class SymSpellTests: XCTestCase {
             return
         }
 
-        try? symSpell.loadBigramDictionary(from: path)
+        try? await symSpell.loadBigramDictionary(from: path)
 
         let sentences = [
             "whereis th elove hehad dated forImuch of thepast who couqdn'tread in sixthgrade and ins pired him",
@@ -215,8 +215,8 @@ final class SymSpellTests: XCTestCase {
         XCTAssertEqual(symSpell.lookupCompound(sentences[3]).first?.term, "can you read this message despite the horrible spelling mistakes")
     }
 
-    func testSegmenting() {
-        guard let symSpell = loadFromDictionaryFile() else {
+    func testSegmenting() async {
+        guard let symSpell = await loadFromDictionaryFile() else {
             XCTFail()
             return
         }

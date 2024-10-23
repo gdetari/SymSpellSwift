@@ -60,22 +60,10 @@ public class SymSpell {
     ///   - from: The url of the file.
     ///   - termIndex:The column position of the word.
     ///   - countIndex: The column position of the frequency count.
-    public func loadBigramDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 2) throws {
-        let content = try String(contentsOf: url, encoding: .utf8)
-        loadBigramDictionary(from: content, termIndex: termIndex, countIndex: countIndex)
-    }
-
-    /// Load multiple dictionary entries from a string of word/frequency count pairs.
-    /// Merges with any dictionary data already loaded.
-    /// - Parameters:
-    ///   - from: The string of the word/frequency count pairs.
-    ///   - termIndex:The column position of the word.
-    ///   - countIndex: The column position of the frequency count.
-    ///   - termCount: The number of words in the dictionary. If provided, it can speed up the load.
-    public func loadBigramDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 2, termCount: Int = 64000) {
+    public func loadBigramDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 2, termCount: Int = 64000) async throws {
         let expectedComponentsCount = max(termIndex + 1, countIndex) + 1
         bigrams.reserveCapacity(termCount)
-        string.enumerateLines { line, _ in
+        for try await line in url.lines {
             let components = line.split(separator: self.separator, maxSplits: expectedComponentsCount - 1)
             
             if components.count >= expectedComponentsCount, let count = Int(components[countIndex]) {
@@ -93,25 +81,12 @@ public class SymSpell {
     ///   - termIndex:The column position of the word.
     ///   - countIndex: The column position of the frequency count.
     ///   - termCount: The number of words in the dictionary. If provided, it can speed up the load.
-    public func loadDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 1, termCount: Int = 64000) throws {
-        let content = try String(contentsOf: url, encoding: .utf8)
-        loadDictionary(from: content, termIndex: termIndex, countIndex: countIndex, termCount: termCount)
-    }
-
-    /// Load multiple dictionary entries from a string of word/frequency count pairs.
-    /// Merges with any dictionary data already loaded.
-    /// - Parameters:
-    ///   - from: The string of the word/frequency count pairs.
-    ///   - termIndex:The column position of the word.
-    ///   - countIndex: The column position of the frequency count.
-    ///   - termCount: The number of words in the dictionary. If provided, it can speed up the load.
-    public func loadDictionary(from string: String, termIndex: Int = 0, countIndex: Int = 1, termCount: Int = 64000) {
-        totalCorpusWords = 0
+    public func loadDictionary(from url: URL, termIndex: Int = 0, countIndex: Int = 1, termCount: Int = 64000) async throws {
         maxDictionaryWordLength = 0
         let expectedComponentsCount = max(termIndex, countIndex) + 1
         deletes.reserveCapacity(termCount)
         
-        string.enumerateLines { line, _ in
+        for try await line in url.lines {
             let components = line.split(separator: self.separator, maxSplits: expectedComponentsCount - 1)
             if components.count == expectedComponentsCount, let count = Int(components[countIndex]) {
                 let key = components[termIndex]

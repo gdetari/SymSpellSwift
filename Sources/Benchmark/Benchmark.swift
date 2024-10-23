@@ -81,13 +81,13 @@ class Benchmark {
         return testList
     }
 
-    static func warmUp() {
+    static func warmUp() async {
         let dict = SymSpell(maxDictionaryEditDistance: 2, prefixLength: 7)
-        try? dict.loadDictionary(from: dictionaryPath[0], termIndex: 0, countIndex: 1)
+        try? await dict.loadDictionary(from: dictionaryPath[0], termIndex: 0, countIndex: 1)
         _ = dict.lookup("hockie", verbosity: .all, maxEditDistance: 1)
     }
 
-    static func benchmarkPrecalculationLookup() {
+    static func benchmarkPrecalculationLookup() async {
         var resultNumber = 0
         let repetitions = 1000
         var totalLoopCount = 0
@@ -105,7 +105,7 @@ class Benchmark {
 
                     stopWatch.start()
                     let dict = SymSpell(maxDictionaryEditDistance: maxEditDistance, prefixLength: prefixLength)
-                    try? dict.loadDictionary(from: dictionaryPath[i], termIndex: 0, countIndex: 1, termCount: dictionarySize[i])
+                    try? await dict.loadDictionary(from: dictionaryPath[i], termIndex: 0, countIndex: 1, termCount: dictionarySize[i])
                     stopWatch.stop()
                     totalLoadTime += stopWatch.elapsedTime
                     print("Precalculation instance \(String(format: "%.3f", stopWatch.elapsedTime))s \(dict.wordCount) words \(dict.entryCount) entries MaxEditDistance=\(maxEditDistance) prefixLength=\(prefixLength) dict=\(dictionaryName[i])")
@@ -133,8 +133,8 @@ class Benchmark {
         print("Total Lookup results instance \(totalMatches)")
     }
     
-    static func main() {
-        warmUp()
-        benchmarkPrecalculationLookup()
+    static func main() async {
+        await warmUp()
+        await benchmarkPrecalculationLookup()
     }
 }
