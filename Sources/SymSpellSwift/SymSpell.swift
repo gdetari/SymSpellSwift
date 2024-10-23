@@ -31,7 +31,7 @@ public class SymSpell {
     /// Length of prefix, from which deletes are generated.
     private(set) var prefixLength = 7
 
-    private var deletes = [String: [String]]()
+    private var deletes = [Int: [String]]()
     private var words = [String: Int]()
 
     private var bigrams = [String: Int]()
@@ -183,7 +183,7 @@ public class SymSpell {
                 break
             }
 
-            for suggestion in deletes[String(candidate)] ?? [] {
+            for suggestion in deletes[candidate.hashValue] ?? [] {
                 let suggestionLen = suggestion.count
                 if suggestion == input { continue }
                 if abs(suggestionLen - inputLen) > maxEditDistance2 || suggestionLen < candidateLen ||
@@ -506,7 +506,7 @@ public class SymSpell {
 
         let edits = editsPrefix(key)
         for delete in edits {
-            deletes[String(delete), default: []].append(key)
+            deletes[delete.hashValue, default: []].append(key)
         }
     }
 
