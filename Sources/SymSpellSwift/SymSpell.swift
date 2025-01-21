@@ -31,8 +31,8 @@ public class SymSpell {
     /// Length of prefix, from which deletes are generated.
     private(set) var prefixLength = 7
 
-    private var deletes = [Int: [String]]()
-    private var words = [String: Int]()
+    private var deletes = [Int: [Int]]()
+    private var words = [Int: (String, Int)]()
 
     private var bigrams = [String: Int]()
     private var bigramCountMin = Int.max
@@ -130,7 +130,7 @@ public class SymSpell {
 
         guard inputLen - maxEditDistance <= maxDictionaryWordLength else { return [] }
 
-        if let count = words[input] {
+        if let count = words[input.hashValue]?.1 {
             suggestions.append(SuggestItem(term: input, distance: 0, count: count))
             if verbosity != .all { return suggestions }
         }
@@ -158,7 +158,7 @@ public class SymSpell {
                 break
             }
 
-            for suggestion in deletes[candidate.hashValue] ?? [] {
+            for suggestion in resolveToWords(hash: candidate.hashValue) {
                 let suggestionLen = suggestion.count
                 if suggestion == input { continue }
                 if abs(suggestionLen - inputLen) > maxEditDistance2 || suggestionLen < candidateLen ||
@@ -192,7 +192,7 @@ public class SymSpell {
                 }
 
                 if distance <= maxEditDistance2 {
-                    let count = words[suggestion, default: 0]
+                    let count = words[suggestion.hashValue]?.1 ?? 0
                     let si = SuggestItem(term: suggestion, distance: distance, count: count)
                     if !suggestions.isEmpty {
                         switch verbosity {
@@ -448,10 +448,10 @@ public class SymSpell {
     /// - Returns: Array of `SuggestItem`  representing suggested correct spellings for the input string.
     public func complete(_ input: String) -> [SuggestItem] {
         let uncodeInput = input.unicodeScalars
-        let results = words.filter { $0.key.unicodeScalars.starts(with: uncodeInput) }
+        let results = words.values.filter { $0.0.unicodeScalars.starts(with: uncodeInput) }
         var suggestions = [SuggestItem]()
         for term in results {
-            let item = SuggestItem(term: term.key, distance: term.key.count - input.count, count: term.value)
+            let item = SuggestItem(term: term.0, distance: term.1 - input.count, count: term.1)
             suggestions.append(item)
         }
         
@@ -471,18 +471,25 @@ public class SymSpell {
 
         totalCorpusWords += count
 
-        if let previousCount = words[key] {
-            words[key] = count + previousCount
+        if let previousCount = words[key.hashValue]?.1 {
+            words[key.hashValue] = (key, count + previousCount)
             return
         }
 
-        words[key] = count
+        words[key.hashValue] = (key, count)
         maxDictionaryWordLength = max(maxDictionaryWordLength, key.count)
 
         let edits = editsPrefix(key)
+        let hash = key.hashValue
+        
         for delete in edits {
-            deletes[delete.hashValue, default: []].append(key)
+            deletes[delete.hashValue, default: []].append(hash)
         }
+    }
+    
+    private func resolveToWords(hash: Int) -> [String] {
+        guard let wordHashes = deletes[hash] else { return [] }
+        return wordHashes.compactMap { words[$0]?.0 }
     }
 
     private func deleteInSuggestionPrefix(_ delete: Substring, _ deleteLen: Int, _ suggestion: String, _ suggestionLen: Int) -> Bool {
