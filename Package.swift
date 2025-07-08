@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "SymSpellSwift",
     platforms: [
-        .iOS(.v15)
+        .iOS(.v15),
+        .macOS(.v12),
     ],
     products: [
         .library(
